@@ -9,7 +9,7 @@ from model import load_model, process_image, calculate_metrics
 
 # Thiết lập tiêu đề trang
 st.set_page_config(
-    page_title="Hệ thống Làm Nét Ảnh Y Tế",
+    page_title="Hệ thống Làm Nét Ảnh nhiễu",
     page_icon="🏥",
     layout="wide"
 )
@@ -133,30 +133,6 @@ st.markdown("""
         padding: 10px 20px;
         border-radius: 5px 5px 0 0;
     }
-    .modal-background {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.8);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    }
-    .modal-content {
-        max-width: 90%;
-        max-height: 90%;
-    }
-    .close-button {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        font-size: 30px;
-        color: white;
-        cursor: pointer;
-    }
     .loader {
         border: 5px solid #f3f3f3;
         border-radius: 50%;
@@ -183,12 +159,36 @@ st.markdown("""
     .stButton button {
         width: 100%;
     }
+    .comparison-container {
+        display: flex;
+        justify-content: space-between;
+        margin: 20px 0;
+    }
+    .image-card {
+        background-color: #f9fafb;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        width: 100%;
+    }
+    .image-title {
+        font-size: 18px;
+        font-weight: bold;
+        color: #3498DB;
+        margin-bottom: 10px;
+    }
+    .image-dimensions {
+        font-size: 14px;
+        color: #7f8c8d;
+        margin-top: 8px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # Tiêu đề chính
 st.markdown('<div class="main-title">Hệ Thống Làm Nét Ảnh Y Tế</div>', unsafe_allow_html=True)
-st.markdown('<div class="info-box">Sử dụng mô hình học sâu dựa trên kiến trúc mạng sinh đối kháng (GAN) để làm nét và nâng cao chất lượng ảnh y tế. Công cụ này giúp cải thiện độ phân giải của ảnh X-quang, CT, MRI và các hình ảnh y tế khác.</div>', unsafe_allow_html=True)
+st.markdown('<div class="info-box">Công cụ giúp cải thiện độ phân giải của ảnh X-quang, CT, MRI và các hình ảnh y tế khác, giúp bác sĩ có thể quan sát rõ hơn các chi tiết quan trọng.</div>', unsafe_allow_html=True)
 
 # Đường dẫn đến file mô hình
 @st.cache_resource
@@ -219,10 +219,8 @@ def get_model():
 model, device = get_model()
 
 # Khởi tạo session state để lưu trạng thái của ứng dụng
-if 'show_fullsize_original' not in st.session_state:
-    st.session_state.show_fullsize_original = False
-if 'show_fullsize_enhanced' not in st.session_state:
-    st.session_state.show_fullsize_enhanced = False
+if 'show_fullsize_comparison' not in st.session_state:
+    st.session_state.show_fullsize_comparison = False
 
 # Tab chính
 tab1, tab2 = st.tabs(["Làm nét ảnh", "Hướng dẫn sử dụng"])
@@ -239,25 +237,6 @@ with tab1:
         # Đọc ảnh
         image = Image.open(uploaded_file).convert('RGB')
         
-        # Hiển thị ảnh gốc - phiên bản thu nhỏ (preview)
-        st.markdown('<div class="sub-title">Ảnh gốc</div>', unsafe_allow_html=True)
-        
-        preview_col1, preview_col2 = st.columns([1, 2])
-        with preview_col1:
-            st.markdown('<div class="image-container">', unsafe_allow_html=True)
-            st.image(image, caption="", width=250, output_format="PNG", clamp=True)
-            if st.button("Xem ảnh gốc kích thước đầy đủ", key="view_original", help="Nhấp để xem ảnh ở kích thước đầy đủ"):
-                st.session_state.show_fullsize_original = True
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Modal cho ảnh gốc kích thước đầy đủ
-        if st.session_state.show_fullsize_original:
-            with st.container():
-                st.markdown('<div class="sub-title">Ảnh gốc - Kích thước đầy đủ</div>', unsafe_allow_html=True)
-                st.image(image, caption="Ảnh y tế gốc", use_container_width=True, output_format="PNG")
-                if st.button("Đóng ảnh kích thước đầy đủ", key="close_original"):
-                    st.session_state.show_fullsize_original = False
-        
         # Xử lý ảnh với mô hình
         with st.spinner("Đang xử lý ảnh..."):
             st.markdown('<div style="display:flex;justify-content:center;margin:20px 0;">', unsafe_allow_html=True)
@@ -265,24 +244,50 @@ with tab1:
             st.markdown('</div>', unsafe_allow_html=True)
             output_image, input_resolution, output_resolution = process_image(model, image, device)
         
-        # Hiển thị ảnh sau khi xử lý - phiên bản thu nhỏ (preview)
-        st.markdown('<div class="sub-title">Ảnh sau khi làm nét</div>', unsafe_allow_html=True)
+        # Hiển thị ảnh gốc và ảnh đã làm nét song song
+        st.markdown('<div class="sub-title">So sánh ảnh gốc và ảnh đã làm nét</div>', unsafe_allow_html=True)
         
-        preview_col1, preview_col2 = st.columns([1, 2])
-        with preview_col1:
-            st.markdown('<div class="image-container">', unsafe_allow_html=True)
-            st.image(output_image, caption="", width=250, output_format="PNG", clamp=True)
-            if st.button("Xem ảnh nét kích thước đầy đủ", key="view_enhanced", help="Nhấp để xem ảnh sau khi làm nét ở kích thước đầy đủ"):
-                st.session_state.show_fullsize_enhanced = True
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown('<div class="image-card">', unsafe_allow_html=True)
+            st.markdown('<div class="image-title">Ảnh gốc</div>', unsafe_allow_html=True)
+            st.image(image, use_container_width=True, output_format="PNG")
+            st.markdown(f'<div class="image-dimensions">Kích thước: {image.width}x{image.height}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+        with col2:
+            st.markdown('<div class="image-card">', unsafe_allow_html=True)
+            st.markdown('<div class="image-title">Ảnh đã làm nét</div>', unsafe_allow_html=True)
+            st.image(output_image, use_container_width=True, output_format="PNG")
+            st.markdown(f'<div class="image-dimensions">Kích thước: {output_image.width}x{output_image.height}</div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
         
-        # Modal cho ảnh đã làm nét kích thước đầy đủ
-        if st.session_state.show_fullsize_enhanced:
-            with st.container():
-                st.markdown('<div class="sub-title">Ảnh đã làm nét - Kích thước đầy đủ</div>', unsafe_allow_html=True)
+        # Nút xem kích thước đầy đủ
+        if st.button("Xem so sánh kích thước đầy đủ", key="view_comparison"):
+            st.session_state.show_fullsize_comparison = True
+        
+        # Modal cho so sánh kích thước đầy đủ
+        if st.session_state.show_fullsize_comparison:
+            st.markdown('<div class="sub-title">So sánh chi tiết - Kích thước đầy đủ</div>', unsafe_allow_html=True)
+            
+            comparison_tabs = st.tabs(["Ảnh gốc", "Ảnh đã làm nét", "Hiển thị song song"])
+            
+            with comparison_tabs[0]:
+                st.image(image, caption="Ảnh y tế gốc", use_container_width=True, output_format="PNG")
+            
+            with comparison_tabs[1]:
                 st.image(output_image, caption="Ảnh y tế sau khi làm nét", use_container_width=True, output_format="PNG")
-                if st.button("Đóng ảnh kích thước đầy đủ", key="close_enhanced"):
-                    st.session_state.show_fullsize_enhanced = False
+            
+            with comparison_tabs[2]:
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.image(image, caption="Ảnh gốc", use_container_width=True, output_format="PNG")
+                with col2:
+                    st.image(output_image, caption="Ảnh đã làm nét", use_container_width=True, output_format="PNG")
+            
+            if st.button("Đóng xem chi tiết", key="close_comparison"):
+                st.session_state.show_fullsize_comparison = False
         
         # Hiển thị thông số về độ phân giải trong các ô metric đẹp hơn
         st.markdown('<div class="sub-title">Thông số chi tiết</div>', unsafe_allow_html=True)
@@ -363,9 +368,9 @@ with tab2:
         st.markdown('<div class="metric-box">', unsafe_allow_html=True)
         st.markdown('<h3>Xem và so sánh ảnh</h3>', unsafe_allow_html=True)
         st.write("""
-        - Ảnh gốc và ảnh đã được làm nét sẽ hiển thị với kích thước thu nhỏ
-        - Nhấn vào nút "Xem kích thước đầy đủ" để xem ảnh ở kích thước lớn hơn
-        - Dễ dàng so sánh chất lượng giữa ảnh gốc và ảnh sau khi xử lý
+        - Ảnh gốc và ảnh đã được làm nét sẽ hiển thị song song để dễ so sánh
+        - Nhấn vào nút "Xem so sánh kích thước đầy đủ" để xem chi tiết hơn
+        - Dễ dàng chuyển đổi giữa các chế độ xem khác nhau
         """)
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -394,7 +399,7 @@ with tab2:
     st.write("""
     - Ứng dụng hoạt động tốt nhất với các ảnh y tế như X-quang, CT scan, MRI, siêu âm, v.v.
     - Kích thước ảnh đầu vào không nên quá lớn để tránh tràn bộ nhớ, đặc biệt là khi chạy trên CPU
-    - Hệ thống sử dụng mô hình làm nét thông minh được đào tạo đặc biệt cho ảnh y tế, giúp:
+    - Hệ thống được đào tạo đặc biệt cho ảnh y tế, giúp:
       * Bảo toàn các chi tiết quan trọng trong chẩn đoán
       * Làm rõ các cạnh và cấu trúc trong ảnh
       * Giảm nhiễu và các nhiễu động không mong muốn
